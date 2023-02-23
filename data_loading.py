@@ -1,12 +1,15 @@
+import json
+
 from torch.utils.data import Dataset
-from .preprocessing import TextPreprocessor
+from utils.preprocessing import TextPreprocessor
 
 
 class TextDataset(Dataset):
     """Custom Dataset created for handling the needed preprocessing steps."""
-    
-    def __init__(self, data, tokenizer, max_seq_length=128):
-        self.data = data
+
+    def __init__(self, file_path, tokenizer, max_seq_length: int = 128) -> None:
+        with open(file_path, "r") as f:
+            self.data = json.load(f)["data"]
         self.tokenizer = tokenizer
         self.max_seq_length = max_seq_length
         self.preprocessor = TextPreprocessor()
@@ -16,15 +19,19 @@ class TextDataset(Dataset):
 
     def __getitem__(self, index):
         sample = self.data[index]
-        document = sample["document"]
-        question = sample["question"]
-        answer = sample["answer"]
-        label = sample["label"]
-        
+        paragraph = sample["paragraphs"][0]
+        document = paragraph["context"]
+
+        question = paragraph["qas"][0]["question"]
+        answer = paragraph["qas"][0]["answers"][0]["text"]
+
         # Preprocess the text using the TextPreprocessor class
-        document = self.preprocessor.process_text(document)
-        question = self.preprocessor.process_text(question)
-        
+        document = self.preprocessor.preprocess_text(document)
+        question = self.preprocessor.preprocess_text(question)
+        print(f"BORRAR: document -> {document}")
+        print(f"BORRAR: question -> {question}")
+        print(f"BORRAR: answer -> {answer}")
+
         # Concatenate document and question with special tokens
         inputs = self.tokenizer.encode_plus(
             document,
@@ -37,5 +44,5 @@ class TextDataset(Dataset):
             return_token_type_ids=True,
             return_tensors="pt",
         )
-
-        return inputs, label
+        # label = self.tokenizer.encode(answer, add_special_tokens=False)
+        return inputs, answer
